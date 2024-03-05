@@ -87,6 +87,7 @@
 # @param letsencrypt_command Command to run letsencrypt
 # @param additional_args An array of additional command line arguments to pass to the `letsencrypt` command.
 # @param environment  An optional array of environment variables
+# @param environment  An optional array of sensitive environment variables
 # @param key_size Size for the RSA public key
 # @param manage_cron
 #   Indicating whether or not to schedule cron job for renewal.
@@ -121,28 +122,29 @@
 # @param cert_name the common name used for the certificate
 #
 define letsencrypt::certonly (
-  Enum['present','absent']                  $ensure               = 'present',
-  Array[String[1]]                          $domains              = [$title],
-  String[1]                                 $cert_name            = $domains[0],
-  Boolean                                   $custom_plugin        = false,
-  Letsencrypt::Plugin                       $plugin               = 'standalone',
-  Array[Stdlib::Unixpath]                   $webroot_paths        = [],
-  String[1]                                 $letsencrypt_command  = $letsencrypt::command,
-  Integer[2048]                             $key_size             = $letsencrypt::key_size,
-  Array[String[1]]                          $additional_args      = [],
-  Array[String[1]]                          $environment          = [],
-  Boolean                                   $manage_cron          = false,
-  Optional[Enum['suppress', 'log']]         $cron_output          = undef,
-  Optional[String[1]]                       $cron_before_command  = undef,
-  Optional[String[1]]                       $cron_success_command = undef,
-  Array[Variant[Integer[0, 59], String[1]]] $cron_monthday        = ['*'],
-  Variant[Integer[0,23], String, Array]     $cron_hour            = fqdn_rand(24, $title),
-  Variant[Integer[0,59], String, Array]     $cron_minute          = fqdn_rand(60, $title),
-  Stdlib::Filemode                          $cron_script_mode     = $letsencrypt::cron_scripts_mode,
-  Stdlib::Unixpath                          $config_dir           = $letsencrypt::config_dir,
-  Variant[String[1], Array[String[1]]]      $pre_hook_commands    = $letsencrypt::certonly_pre_hook_commands,
-  Variant[String[1], Array[String[1]]]      $post_hook_commands   = $letsencrypt::certonly_post_hook_commands,
-  Variant[String[1], Array[String[1]]]      $deploy_hook_commands = $letsencrypt::certonly_deploy_hook_commands,
+  Enum['present','absent']                  $ensure                = 'present',
+  Array[String[1]]                          $domains               = [$title],
+  String[1]                                 $cert_name             = $domains[0],
+  Boolean                                   $custom_plugin         = false,
+  Letsencrypt::Plugin                       $plugin                = 'standalone',
+  Array[Stdlib::Unixpath]                   $webroot_paths         = [],
+  String[1]                                 $letsencrypt_command   = $letsencrypt::command,
+  Integer[2048]                             $key_size              = $letsencrypt::key_size,
+  Array[String[1]]                          $additional_args       = [],
+  Array[String[1]]                          $environment           = [],
+  Array[Sensitive[String[1]]]               $sensitive_environment = [],
+  Boolean                                   $manage_cron           = false,
+  Optional[Enum['suppress', 'log']]         $cron_output           = undef,
+  Optional[String[1]]                       $cron_before_command   = undef,
+  Optional[String[1]]                       $cron_success_command  = undef,
+  Array[Variant[Integer[0, 59], String[1]]] $cron_monthday         = ['*'],
+  Variant[Integer[0,23], String, Array]     $cron_hour             = fqdn_rand(24, $title),
+  Variant[Integer[0,59], String, Array]     $cron_minute           = fqdn_rand(60, $title),
+  Stdlib::Filemode                          $cron_script_mode      = $letsencrypt::cron_scripts_mode,
+  Stdlib::Unixpath                          $config_dir            = $letsencrypt::config_dir,
+  Variant[String[1], Array[String[1]]]      $pre_hook_commands     = $letsencrypt::certonly_pre_hook_commands,
+  Variant[String[1], Array[String[1]]]      $post_hook_commands    = $letsencrypt::certonly_post_hook_commands,
+  Variant[String[1], Array[String[1]]]      $deploy_hook_commands  = $letsencrypt::certonly_deploy_hook_commands,
 ) {
   if $plugin == 'webroot' and empty($webroot_paths) {
     fail("The 'webroot_paths' parameter must be specified when using the 'webroot' plugin")
@@ -266,11 +268,16 @@ define letsencrypt::certonly (
     $exec_ensure = { 'onlyif' => "/usr/local/sbin/letsencrypt-domain-validation ${live_path} '${verify_domains}'" }
   }
 
+  $_environment = flatten([
+    $environment,
+    $sensitive_environment.map |$e| { $e.unwrap }
+  ])
+
   exec { "letsencrypt certonly ${title}":
     command     => $command,
     *           => $exec_ensure,
     path        => $facts['path'],
-    environment => $environment,
+    environment => $_environment,
     provider    => 'shell',
     require     => [
       File['/usr/local/sbin/letsencrypt-domain-validation'],
@@ -305,8 +312,9 @@ define letsencrypt::certonly (
       owner   => 'root',
       group   => $letsencrypt::cron_owner_group,
       content => epp('letsencrypt/renew-script.sh.epp', {
-        environment => $environment,
-        cron_cmd    => $cron_cmd
+        environment           => $environment,
+        sensitive_environment => $sensitive_environment,
+        cron_cmd              => $cron_cmd
       }),
     }
 
