@@ -1,0 +1,9 @@
+<%|
+    Array[String[1]] $environment,
+    String $cron_cmd
+|%>
+#!/bin/sh
+<%- $environment.each |environment| { -%>
+export <%= environment %>
+<%- } -%>
+<%= $cron_cmd %>

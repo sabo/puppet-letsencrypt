@@ -304,7 +304,10 @@ define letsencrypt::certonly (
       mode    => $cron_script_mode,
       owner   => 'root',
       group   => $letsencrypt::cron_owner_group,
-      content => template('letsencrypt/renew-script.sh.erb'),
+      content => epp('letsencrypt/renew-script.sh.epp', {
+        environment => $environment,
+        cron_cmd    => $cron_cmd
+      }),
     }
 
     cron { "letsencrypt renew cron ${title}":
