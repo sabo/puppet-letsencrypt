@@ -138,6 +138,7 @@ define letsencrypt::certonly (
   Array[Variant[Integer[0, 59], String[1]]] $cron_monthday        = ['*'],
   Variant[Integer[0,23], String, Array]     $cron_hour            = fqdn_rand(24, $title),
   Variant[Integer[0,59], String, Array]     $cron_minute          = fqdn_rand(60, $title),
+  Stdlib::Filemode                          $cron_script_mode     = $letsencrypt::cron_scripts_mode,
   Stdlib::Unixpath                          $config_dir           = $letsencrypt::config_dir,
   Variant[String[1], Array[String[1]]]      $pre_hook_commands    = $letsencrypt::certonly_pre_hook_commands,
   Variant[String[1], Array[String[1]]]      $post_hook_commands   = $letsencrypt::certonly_post_hook_commands,
@@ -300,7 +301,7 @@ define letsencrypt::certonly (
 
     file { "${letsencrypt::cron_scripts_path}/renew-${title}.sh":
       ensure  => $cron_script_ensure,
-      mode    => '0755',
+      mode    => $cron_script_mode,
       owner   => 'root',
       group   => $letsencrypt::cron_owner_group,
       content => template('letsencrypt/renew-script.sh.erb'),
