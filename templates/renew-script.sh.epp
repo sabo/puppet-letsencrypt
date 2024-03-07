@@ -1,8 +1,8 @@
-<%|
+<%-|
     Array[String[1]] $environment,
     Array[Sensitive[String[1]]] $sensitive_environment,
     String $cron_cmd
-|%>
+|-%>
 #!/bin/sh
 <%- $environment.each | $env | { -%>
 export <%= $env %>
