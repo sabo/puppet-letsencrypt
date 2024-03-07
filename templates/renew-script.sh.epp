@@ -4,10 +4,10 @@
     String $cron_cmd
 |%>
 #!/bin/sh
-<%- $environment.each |environment| { -%>
-export <%= environment %>
+<%- $environment.each | $env | { -%>
+export <%= $env %>
 <%- } -%>
-<%- $sensitive_environment.each |environment| { -%>
-export <%= environment %>
+<%- $sensitive_environment.each | $env | { -%>
+export <%= $env %>
 <%- } -%>
 <%= $cron_cmd %>
